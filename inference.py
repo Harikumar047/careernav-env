@@ -8,16 +8,18 @@ from typing import List, Dict, Any
 API_BASE_URL = os.getenv("API_BASE_URL", "https://api.openai.com/v1")
 MODEL_NAME = os.getenv("MODEL_NAME", "gpt-4o-mini")
 LOCAL_IMAGE_NAME = os.getenv("LOCAL_IMAGE_NAME")
-HF_TOKEN = os.getenv("HF_TOKEN")
-API_KEY = os.getenv("OPENAI_API_KEY")
 
-if not API_KEY:
-    print("Error: OPENAI_API_KEY not set.")
-    exit(1)
+# Fallback chain for API Key
+API_KEY = os.getenv("OPENAI_API_KEY") or os.getenv("HF_TOKEN") or os.getenv("API_KEY")
 
-SERVER_URL = os.getenv("CAREERNAV_URL", "https://harikumar07-careernav-env.hf.space")
+# Default to localhost for evaluation environments
+SERVER_URL = os.getenv("CAREERNAV_URL", "http://localhost:7860")
 
-client = OpenAI(api_key=API_KEY, base_url=API_BASE_URL)
+client = None
+if API_KEY:
+    client = OpenAI(api_key=API_KEY, base_url=API_BASE_URL)
+else:
+    print("Warning: No API_KEY found. Inference will likely fail.")
 
 TASKS = [
     "skill_gap_identifier",
@@ -27,6 +29,9 @@ TASKS = [
 ]
 
 def get_agent_action(obs: Dict[str, Any], task_id: str) -> Dict[str, Any]:
+    if not client:
+        return {"action_type": "finalize_roadmap", "payload": {}}
+
     prompt = f"""
     You are an AI Career Coach in the CareerNav environment.
     Task: {task_id}
@@ -49,9 +54,9 @@ def get_agent_action(obs: Dict[str, Any], task_id: str) -> Dict[str, Any]:
     try:
         response = client.chat.completions.create(
             model=MODEL_NAME,
-            messages=[{"role": "user", "content": prompt}]
+            messages=[{"role": "user", "content": prompt}],
+            timeout=30
         )
-        # Try to extract JSON from response
         content = response.choices[0].message.content
         if "```json" in content:
             content = content.split("```json")[1].split("```")[0].strip()
@@ -59,7 +64,7 @@ def get_agent_action(obs: Dict[str, Any], task_id: str) -> Dict[str, Any]:
             content = content.split("```")[1].split("```")[0].strip()
         return json.loads(content)
     except Exception as e:
-        # Fallback to finalizing if anything goes wrong
+        print(f"Error in LLM call: {e}")
         return {"action_type": "finalize_roadmap", "payload": {}}
 
 def run_episode(task_id: str):
@@ -74,14 +79,14 @@ def run_episode(task_id: str):
     
     try:
         # 1. Reset
-        res = requests.post(f"{SERVER_URL}/reset", json={
+        reset_res = requests.post(f"{SERVER_URL}/reset", json={
             "session_id": f"inf_{task_id}",
             "task_id": task_id,
             "cv_path": "overachiever.pdf",
             "seed": 42
-        }).json()
-        
-        obs = res
+        }, timeout=10)
+        reset_res.raise_for_status()
+        obs = reset_res.json()
         
         # 2. Loop
         while not done and step < 10:
@@ -91,31 +96,42 @@ def run_episode(task_id: str):
             step_res = requests.post(f"{SERVER_URL}/step", json={
                 "session_id": f"inf_{task_id}",
                 "action": action
-            }).json()
+            }, timeout=10)
+            step_res.raise_for_status()
+            
+            try:
+                data = step_res.json()
+            except Exception as e:
+                print(f"Failed to parse JSON response: {step_res.text}")
+                break
                 
-            reward = step_res["reward"]["value"]
+            reward = data["reward"]["value"]
             rewards.append(reward)
-            done = step_res["done"]
-            obs = step_res["observation"]
-            error = step_res["info"].get("error")
+            done = data["done"]
+            obs = data["observation"]
+            error = data["info"].get("error")
             
             print(f"[STEP] step={step} action={action.get('action_type', 'unknown')} reward={reward:.2f} done={str(done).lower()} error={error}")
 
         # 3. End
         score = obs.get("match_score", 0.0)
-        # Clamp score to [0.0, 1.0]
         score = max(0.0, min(1.0, score))
         success = score > 0.7
+    except Exception as e:
+        print(f"Episode failed with error: {e}")
     finally:
         rewards_str = ",".join([f"{r:.2f}" for r in rewards])
         print(f"[END] success={str(success).lower()} steps={step} score={score:.3f} rewards={rewards_str}")
 
 def main():
+    if not API_KEY:
+        print("Warning: OPENAI_API_KEY environment variable not found. Running with baseline behavior.")
+        
     for task in TASKS:
         try:
             run_episode(task)
         except Exception as e:
-            print(f"Error executing task {task}: {e}")
+            print(f"Unhandled error in task {task}: {e}")
 
 if __name__ == "__main__":
     main()

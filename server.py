@@ -66,10 +66,3 @@ def state(session_id: str = "default") -> Observation:
     if session_id not in sessions:
         raise HTTPException(status_code=400, detail="Session not initialized via /reset")
     return sessions[session_id].state()
-
-def main():
-    import uvicorn
-    uvicorn.run("server.app:app", host="0.0.0.0", port=7860)
-
-if __name__ == "__main__":
-    main()

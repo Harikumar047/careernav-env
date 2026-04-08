@@ -10,14 +10,30 @@ sessions = {}
 
 class ResetRequest(BaseModel):
     session_id: str = "default"
-    cv_path: str = "lazy.pdf"
-    target_role: str = "Software Engineer"
-    task_id: str = "default"
+    task_id: str = "skill_gap_identifier"
     seed: int = 42
+    cv_path: str = "overachiever.pdf"
+    target_role: str = "Software Engineer"
     
 class StepRequest(BaseModel):
     session_id: str = "default"
     action: Action
+
+@app.get("/")
+def root():
+    return {
+        "name": "CareerNav-Env",
+        "version": "1.0.0",
+        "description": "OpenEnv career coaching environment for CS students",
+        "docs": "/docs",
+        "health": "/health",
+        "tasks": [
+            "skill_gap_identifier", 
+            "course_recommender", 
+            "full_optimizer", 
+            "pm_scheme_matcher"
+        ]
+    }
 
 @app.get("/health")
 def health():

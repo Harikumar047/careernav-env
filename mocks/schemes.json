@@ -1,0 +1,54 @@
+[
+    {
+        "id": "pm_internship_01",
+        "name": "PM Internship Scheme",
+        "eligibility_rules": {
+            "min_age": 21,
+            "max_age": 24,
+            "status": ["final year", "recent grad"]
+        },
+        "stipend_amount": 5000.0,
+        "description": "Age 21-24, final year or recent grad students."
+    },
+    {
+        "id": "sih_01",
+        "name": "Smart India Hackathon",
+        "eligibility_rules": {
+            "is_student": true,
+            "is_team_based": true,
+            "problem_statement_match": true
+        },
+        "stipend_amount": 0.0,
+        "description": "Enrolled student, team based, problem statement match."
+    },
+    {
+        "id": "aicte_01",
+        "name": "AICTE Internship Portal",
+        "eligibility_rules": {
+            "is_aicte_college": true,
+            "min_months_remaining": 6
+        },
+        "stipend_amount": 0.0,
+        "description": "AICTE approved college, min 6 months remaining."
+    },
+    {
+        "id": "csir_01",
+        "name": "CSIR Research Internship",
+        "eligibility_rules": {
+            "background": "science",
+            "min_percentage": 60
+        },
+        "stipend_amount": 0.0,
+        "description": "Science background, min 60 percent marks."
+    },
+    {
+        "id": "nasscom_fs_01",
+        "name": "NASSCOM FutureSkills",
+        "eligibility_rules": {
+            "is_cs_student": true,
+            "path": "skill certification"
+        },
+        "stipend_amount": 0.0,
+        "description": "Any CS student, skill certification path."
+    }
+]

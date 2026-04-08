@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "careernav-env"
+version = "1.0.0"
+description = "A real-time OpenEnv-compliant environment where an AI acts as a career coach for CS students in India."
+authors = [{name = "Antigravity"}]
+dependencies = [
+    "fastapi",
+    "uvicorn",
+    "pydantic",
+    "openai",
+    "requests",
+    "fpdf",
+    "openenv-core>=0.2.0"
+]
+
+[project.scripts]
+server = "server.app:main"

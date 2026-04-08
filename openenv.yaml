@@ -4,7 +4,7 @@ description: "A real-time OpenEnv-compliant environment where an AI acts as a ca
 author: "Harikumar07"
 license: "MIT"
 sdk: "fastapi"
-entrypoint: "server.app:app"
+entrypoint: "server:app"
 server:
   port: 7860
   routes:

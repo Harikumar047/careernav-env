@@ -5,11 +5,15 @@ from openai import OpenAI
 from typing import List, Dict, Any
 
 # Environment & Model Config
-API_BASE_URL = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
-MODEL_NAME = os.getenv("MODEL_NAME", "Qwen/Qwen2.5-72B-Instruct")
+API_BASE_URL = os.getenv("API_BASE_URL", "https://api.openai.com/v1")
+MODEL_NAME = os.getenv("MODEL_NAME", "gpt-4o-mini")
 LOCAL_IMAGE_NAME = os.getenv("LOCAL_IMAGE_NAME")
 HF_TOKEN = os.getenv("HF_TOKEN")
-API_KEY = os.getenv("HF_TOKEN") or os.getenv("API_KEY")
+API_KEY = os.getenv("OPENAI_API_KEY")
+
+if not API_KEY:
+    print("Error: OPENAI_API_KEY not set.")
+    exit(1)
 
 SERVER_URL = os.getenv("CAREERNAV_URL", "https://harikumar07-careernav-env.hf.space")
 
@@ -107,10 +111,6 @@ def run_episode(task_id: str):
         print(f"[END] success={str(success).lower()} steps={step} score={score:.3f} rewards={rewards_str}")
 
 def main():
-    if not API_KEY:
-        print("Error: API_KEY not set. Please provide HF_TOKEN or API_KEY environmental variables.")
-        return
-        
     for task in TASKS:
         try:
             run_episode(task)

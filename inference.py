@@ -1,6 +1,7 @@
 import os
 import requests
 import json
+import traceback
 from openai import OpenAI
 from typing import List, Dict, Any
 
@@ -15,9 +16,27 @@ API_KEY = os.getenv("OPENAI_API_KEY") or os.getenv("HF_TOKEN") or os.getenv("API
 # Default to localhost for evaluation environments
 SERVER_URL = os.getenv("CAREERNAV_URL", "http://localhost:7860")
 
+print(f"--- Diagnostic Info ---")
+print(f"MODEL_NAME: {MODEL_NAME}")
+print(f"API_BASE_URL: {API_BASE_URL}")
+if API_KEY:
+    masked_key = f"{API_KEY[:4]}...{API_KEY[-4:]}" if len(API_KEY) > 8 else "****"
+    print(f"API_KEY: {masked_key}")
+else:
+    print(f"API_KEY: NOT FOUND")
+print(f"-----------------------")
+
 client = None
 if API_KEY:
-    client = OpenAI(api_key=API_KEY, base_url=API_BASE_URL)
+    try:
+        # Wrapping client init in try/except because platform-level proxy or malformed base_urls 
+        # can cause internal crashes during SyncHttpxClientWrapper creation.
+        client = OpenAI(api_key=API_KEY, base_url=API_BASE_URL)
+        print("Success: OpenAI client initialized.")
+    except Exception as e:
+        print(f"Critical Warning: Failed to initialize OpenAI client: {e}")
+        # traceback.print_exc()
+        client = None
 else:
     print("Warning: No API_KEY found. Inference will likely fail.")
 
@@ -30,6 +49,7 @@ TASKS = [
 
 def get_agent_action(obs: Dict[str, Any], task_id: str) -> Dict[str, Any]:
     if not client:
+        # Fallback action to prevent crashing if LLM is unavailable
         return {"action_type": "finalize_roadmap", "payload": {}}
 
     prompt = f"""
@@ -121,12 +141,10 @@ def run_episode(task_id: str):
         print(f"Episode failed with error: {e}")
     finally:
         rewards_str = ",".join([f"{r:.2f}" for r in rewards])
+        # Always print the [END] line so the platform parser reports a failure rather than a crash
         print(f"[END] success={str(success).lower()} steps={step} score={score:.3f} rewards={rewards_str}")
 
 def main():
-    if not API_KEY:
-        print("Warning: OPENAI_API_KEY environment variable not found. Running with baseline behavior.")
-        
     for task in TASKS:
         try:
             run_episode(task)

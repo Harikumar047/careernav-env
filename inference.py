@@ -6,12 +6,10 @@ from openai import OpenAI
 from typing import List, Dict, Any
 
 # Environment & Model Config
-API_BASE_URL = os.getenv("API_BASE_URL", "https://api.openai.com/v1")
+# The platform provides API_BASE_URL and API_KEY. We must use them to pass LLM Criteria Check.
+API_BASE_URL = os.getenv("API_BASE_URL") or os.getenv("OPENAI_BASE_URL") or "https://api.openai.com/v1"
+API_KEY = os.getenv("API_KEY") or os.getenv("OPENAI_API_KEY") or os.getenv("HF_TOKEN")
 MODEL_NAME = os.getenv("MODEL_NAME", "gpt-4o-mini")
-LOCAL_IMAGE_NAME = os.getenv("LOCAL_IMAGE_NAME")
-
-# Fallback chain for API Key
-API_KEY = os.getenv("OPENAI_API_KEY") or os.getenv("HF_TOKEN") or os.getenv("API_KEY")
 
 # Default to localhost for evaluation environments
 SERVER_URL = os.getenv("CAREERNAV_URL", "http://localhost:7860")
@@ -23,22 +21,21 @@ if API_KEY:
     masked_key = f"{API_KEY[:4]}...{API_KEY[-4:]}" if len(API_KEY) > 8 else "****"
     print(f"API_KEY: {masked_key}")
 else:
-    print(f"API_KEY: NOT FOUND")
+    print(f"API_KEY: NOT FOUND (This will likely fail LLM Criteria Check)")
 print(f"-----------------------")
 
 client = None
-if API_KEY:
+if API_KEY and API_BASE_URL:
     try:
-        # Wrapping client init in try/except because platform-level proxy or malformed base_urls 
-        # can cause internal crashes during SyncHttpxClientWrapper creation.
+        # Strictly following platform instructions to use provided base_url and api_key
         client = OpenAI(api_key=API_KEY, base_url=API_BASE_URL)
-        print("Success: OpenAI client initialized.")
+        print("Success: OpenAI client initialized via Proxy.")
     except Exception as e:
-        print(f"Critical Warning: Failed to initialize OpenAI client: {e}")
+        print(f"Critical Error: Failed to initialize OpenAI client: {e}")
         # traceback.print_exc()
         client = None
 else:
-    print("Warning: No API_KEY found. Inference will likely fail.")
+    print("Warning: Missing API_KEY or API_BASE_URL. Using fallback behavior.")
 
 TASKS = [
     "skill_gap_identifier",
@@ -50,7 +47,7 @@ TASKS = [
 def get_agent_action(obs: Dict[str, Any], task_id: str) -> Dict[str, Any]:
     if not client:
         # Fallback action to prevent crashing if LLM is unavailable
-        return {"action_type": "finalize_roadmap", "payload": {}}
+        return {"action_type": "finalize_roadmap", "payload": {"justification": "Fallback due to Missing Client"}}
 
     prompt = f"""
     You are an AI Career Coach in the CareerNav environment.
@@ -85,7 +82,7 @@ def get_agent_action(obs: Dict[str, Any], task_id: str) -> Dict[str, Any]:
         return json.loads(content)
     except Exception as e:
         print(f"Error in LLM call: {e}")
-        return {"action_type": "finalize_roadmap", "payload": {}}
+        return {"action_type": "finalize_roadmap", "payload": {"justification": f"LLM Error: {str(e)}"}}
 
 def run_episode(task_id: str):
     print(f"[START] task={task_id} env=careernav model={MODEL_NAME}")
@@ -141,7 +138,6 @@ def run_episode(task_id: str):
         print(f"Episode failed with error: {e}")
     finally:
         rewards_str = ",".join([f"{r:.2f}" for r in rewards])
-        # Always print the [END] line so the platform parser reports a failure rather than a crash
         print(f"[END] success={str(success).lower()} steps={step} score={score:.3f} rewards={rewards_str}")
 
 def main():

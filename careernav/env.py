@@ -18,6 +18,7 @@ class CareerNavEnv:
         self._recommended_courses = []
         self._flagged_gaps = set()
         self._schemes_matched = []
+        self._initial_gap_count = 0
         
     def reset(self, cv_path: str = "lazy.pdf", target_role: str = "Software Engineer", seed: int = None) -> Observation:
         if seed is not None:
@@ -64,6 +65,7 @@ class CareerNavEnv:
             real_courses={c.id: c.model_dump() for c in courses},
             identified_gaps=[]
         )
+        self._initial_gap_count = len(gaps)
         return self._state
 
     def state(self) -> Observation:
@@ -167,10 +169,18 @@ class CareerNavEnv:
             else:
                 # Basic eligibility simulation logic
                 is_eligible = True
-                if scheme_id == "pm_internship_01" and self._state.persona == "lazy":
-                    is_eligible = False
-                elif scheme_id == "csir_01" and "Science" not in str(self._state.student_skills):
-                    is_eligible = False
+                if scheme_id == "pm_internship_01":
+                     # age between 21-24 OR persona not lazy
+                     # Note: Age not in persona data yet, prioritizing persona check
+                     is_eligible = (self._state.persona != "lazy")
+                elif scheme_id == "sih_01":
+                     is_eligible = (self._state.persona in ["overachiever", "switcher"])
+                elif scheme_id == "aicte_01":
+                     is_eligible = True
+                elif scheme_id == "csir_01":
+                     is_eligible = (self._state.match_score > 0.3)
+                elif scheme_id == "nasscom_fs_01":
+                     is_eligible = True
                 
                 if is_eligible:
                     reward_val += 0.15
@@ -183,16 +193,20 @@ class CareerNavEnv:
                     
         elif action_type == "finalize_roadmap":
             self._done = True
-            reward_val += self._state.match_score
-            breakdown["match_score_reward"] = self._state.match_score
+            initial_gaps = self._initial_gap_count
+            gaps_remaining = len(self._state.gaps_remaining)
+            gaps_closed = initial_gaps - gaps_remaining
+            coverage = gaps_closed / max(initial_gaps, 1)
+            match_score = self._state.match_score
+            has_schemes = 1.0 if len(self._schemes_matched) > 0 else 0.0
+            
+            reward_val = 0.4 * coverage + 0.4 * match_score + 0.2 * has_schemes
+            breakdown["roadmap_optimization"] = reward_val
             
         # 3. match_score must be recalculated after every step
         if self._state.target_skills:
             intersection = len(set(self._state.student_skills).intersection(self._state.target_skills))
-            unflagged_gaps = len(self._state.target_skills) - intersection - len(self._state.identified_gaps)
-            # Adjusted base formula implicitly so unflagged gaps lower the score, ensuring the 3 target profiles uniquely differ
-            score = (intersection / len(self._state.target_skills)) - (0.1 * max(0, unflagged_gaps))
-            self._state.match_score = max(0.0, score)
+            self._state.match_score = intersection / len(self._state.target_skills)
         else:
             self._state.match_score = 1.0
                 

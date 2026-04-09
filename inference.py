@@ -7,10 +7,13 @@ from openai import OpenAI
 from typing import List, Dict, Any
 
 # Environment & Model Config
-# The platform provides API_BASE_URL and API_KEY. We must use them to pass LLM Criteria Check.
-API_BASE_URL = os.getenv("API_BASE_URL") or os.getenv("OPENAI_BASE_URL") or "https://api.openai.com/v1"
-API_KEY = os.getenv("API_KEY") or os.getenv("OPENAI_API_KEY") or os.getenv("HF_TOKEN")
+API_BASE_URL = os.getenv("API_BASE_URL", "https://api.openai.com/v1")
 MODEL_NAME = os.getenv("MODEL_NAME", "gpt-4o-mini")
+API_KEY = os.getenv("API_KEY")
+
+if not API_KEY:
+    print("Error: API_KEY not set.")
+    exit(1)
 
 # Sanitize Base URL (Ensure it has a scheme)
 if API_BASE_URL and not API_BASE_URL.startswith("http"):
@@ -37,15 +40,10 @@ else:
     print(f"API_KEY: NOT FOUND")
 print(f"-----------------------")
 
-client = None
-if API_KEY and API_BASE_URL:
-    try:
-        # Strictly following platform instructions
-        client = OpenAI(api_key=API_KEY, base_url=API_BASE_URL)
-        print("Success: OpenAI client initialized via Proxy.")
-    except Exception as e:
-        print(f"Critical Warning: Failed to initialize OpenAI client: {e}")
-        client = None
+client = OpenAI(
+    api_key=API_KEY,
+    base_url=API_BASE_URL
+)
 
 TASKS = [
     "skill_gap_identifier",

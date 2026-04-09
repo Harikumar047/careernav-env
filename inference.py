@@ -40,9 +40,13 @@ else:
     print(f"API_KEY: NOT FOUND")
 print(f"-----------------------")
 
+import httpx
 client = OpenAI(
     api_key=API_KEY,
-    base_url=API_BASE_URL
+    base_url=API_BASE_URL,
+    http_client=httpx.Client(
+        timeout=30.0
+    )
 )
 
 TASKS = [

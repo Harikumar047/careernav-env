@@ -86,10 +86,12 @@ def get_agent_action(obs: Dict[str, Any], task_id: str) -> Dict[str, Any]:
     Current Observation: {json.dumps(obs, indent=2)}
     
     Goal:
-    - If skill_gap_identifier: Flag all missing skills using 'flag_gap'.
-    - If course_recommender: Recommend suitable courses for gaps using 'recommend_course'.
-    - If pm_scheme_matcher: Check eligibility for relevant government schemes using 'check_scheme_eligibility'.
-    - If full_optimizer: Combine all actions to create the best roadmap.
+    1. Identify ALL missing skills from the student's profile using 'flag_gap'.
+    2. Once all gaps are identified, recommend the best courses from the catalog using 'recommend_course'.
+    3. Before finishing, check eligibility for relevant government schemes using 'check_scheme_eligibility' to maximize score.
+    4. Only when the roadmap is optimized and schemes are checked, use 'finalize_roadmap'.
+    
+    Strategy: Do NOT finalize before at least 5-8 steps to ensure thoroughness.
     
     Respond ONLY with a JSON object matching this schema:
     {{
@@ -138,7 +140,7 @@ def run_episode(task_id: str):
         obs = reset_res.json()
         
         # 2. Loop
-        while not done and step < 10:
+        while not done and step < 15:
             step += 1
             action = get_agent_action(obs, task_id)
             

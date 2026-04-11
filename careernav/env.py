@@ -107,8 +107,8 @@ class CareerNavEnv:
                 self._flagged_gaps.add(skill)
                 if skill not in self._state.identified_gaps:
                     self._state.identified_gaps.append(skill)
-                reward_val += 0.10
-                breakdown["correct_flag"] = 0.10
+                reward_val += 0.15
+                breakdown["correct_flag"] = 0.15
                 self._state.match_score = round(
                     min(1.0, self._state.match_score + 0.05), 3)
             else:
@@ -200,9 +200,14 @@ class CareerNavEnv:
             coverage = gaps_closed / max(self._initial_gap_count, 1)
             scheme_bonus = 0.2 if len(self._schemes_matched) > 0 else 0.0
             reward_val = round(
-                0.4 * coverage + 
-                0.4 * self._state.match_score + 
+                0.3 * coverage + 
+                0.5 * self._state.match_score + 
                 0.2 * scheme_bonus, 3)
+            
+            if self._step_count < 3:
+                reward_val -= 0.20
+                breakdown["too_early"] = -0.20
+                
             breakdown["final_reward"] = reward_val
             
         # 3. match_score must be recalculated after every step

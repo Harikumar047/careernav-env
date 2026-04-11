@@ -109,6 +109,8 @@ class CareerNavEnv:
                     self._state.identified_gaps.append(skill)
                 reward_val += 0.10
                 breakdown["correct_flag"] = 0.10
+                self._state.match_score = round(
+                    min(1.0, self._state.match_score + 0.05), 3)
             else:
                 reward_val -= 0.05
                 breakdown["false_gap"] = -0.05
@@ -139,8 +141,8 @@ class CareerNavEnv:
                         breakdown["prereq_violation"] = -0.10
                         info.prereq_violations = prereq_violations
                     else:
-                        reward_val += 0.15
-                        breakdown["correct_course"] = 0.15
+                        reward_val += 0.20
+                        breakdown["correct_course"] = 0.20
                         
                     self._recommended_courses.append(course_id)
                     for s in course["skills_covered"]:
@@ -161,52 +163,54 @@ class CareerNavEnv:
                 
         elif action_type == "check_scheme_eligibility":
             scheme_id = payload.get("scheme_id")
-            scheme = next((s for s in self._state.available_schemes if s["id"] == scheme_id), None)
-            
+            scheme = next((s for s in self._state.available_schemes 
+                if s["id"] == scheme_id), None)
             if not scheme:
                 reward_val -= 0.05
                 info.error = "Invalid scheme_id"
             else:
-                # Basic eligibility simulation logic
-                is_eligible = True
-                if scheme_id == "pm_internship_01":
-                     # age between 21-24 OR persona not lazy
-                     # Note: Age not in persona data yet, prioritizing persona check
-                     is_eligible = (self._state.persona != "lazy")
-                elif scheme_id == "sih_01":
-                     is_eligible = (self._state.persona in ["overachiever", "switcher"])
-                elif scheme_id == "aicte_01":
-                     is_eligible = True
-                elif scheme_id == "csir_01":
-                     is_eligible = (self._state.match_score > 0.3)
-                elif scheme_id == "nasscom_fs_01":
-                     is_eligible = True
-                
+                match_ok = self._state.match_score >= 0.2
+                is_cs = any(s in self._state.student_skills 
+                    for s in ["Python","Java","JavaScript",
+                              "C++","React","SQL"])
+                eligible_map = {
+                    "pm_internship_01": 
+                        self._state.persona in ["overachiever","switcher","panic"],
+                    "sih_01": 
+                        self._state.persona in ["overachiever","switcher"],
+                    "aicte_01": True,
+                    "csir_01": match_ok and is_cs,
+                    "nasscom_01": is_cs,
+                }
+                is_eligible = eligible_map.get(scheme_id, False)
                 if is_eligible:
                     reward_val += 0.15
                     breakdown["scheme_match"] = 0.15
                     if scheme_id not in self._schemes_matched:
                         self._schemes_matched.append(scheme_id)
                 else:
-                    reward_val -= 0.10
-                    breakdown["ineligible_scheme"] = -0.10
+                    reward_val += 0.05
+                    breakdown["partial_scheme"] = 0.05
+                    info.error = f"Not eligible for {scheme_id}"
                     
         elif action_type == "finalize_roadmap":
             self._done = True
-            initial_gaps = self._initial_gap_count
-            gaps_remaining = len(self._state.gaps_remaining)
-            gaps_closed = initial_gaps - gaps_remaining
-            coverage = gaps_closed / max(initial_gaps, 1)
-            match_score = self._state.match_score
-            has_schemes = 1.0 if len(self._schemes_matched) > 0 else 0.0
-            
-            reward_val = 0.4 * coverage + 0.4 * match_score + 0.2 * has_schemes
-            breakdown["roadmap_optimization"] = reward_val
+            gaps_closed = self._initial_gap_count - len(
+                self._state.gaps_remaining)
+            coverage = gaps_closed / max(self._initial_gap_count, 1)
+            scheme_bonus = 0.2 if len(self._schemes_matched) > 0 else 0.0
+            reward_val = round(
+                0.4 * coverage + 
+                0.4 * self._state.match_score + 
+                0.2 * scheme_bonus, 3)
+            breakdown["final_reward"] = reward_val
             
         # 3. match_score must be recalculated after every step
         if self._state.target_skills:
-            intersection = len(set(self._state.student_skills).intersection(self._state.target_skills))
-            self._state.match_score = intersection / len(self._state.target_skills)
+            matched = len(set(self._state.student_skills)
+                .intersection(set(self._state.target_skills)))
+            self._state.match_score = round(
+                matched / len(self._state.target_skills), 3)
         else:
             self._state.match_score = 1.0
                 

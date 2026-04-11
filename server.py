@@ -4,7 +4,7 @@ from careernav.models import Observation, Action, Reward, StepInfo
 from pydantic import BaseModel
 from typing import Dict, Any, Optional
 
-app = FastAPI(title="CareerNav-Env OpenEnv API")
+app = FastAPI(title="SkillPath-Env OpenEnv API")
 
 sessions = {}
 

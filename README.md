@@ -1,5 +1,5 @@
 ---
-title: CareerNav-Env
+title: SkillPath-Env
 emoji: 🎯
 colorFrom: blue
 colorTo: green
@@ -9,7 +9,7 @@ tags:
   - openenv
 ---
 
-# CareerNav-Env
+# SkillPath-Env
 
 A real-time OpenEnv-compliant reinforcement learning environment where an AI acts as a career coach for CS students in India.
 

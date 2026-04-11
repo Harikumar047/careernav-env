@@ -1,4 +1,4 @@
-name: "careernav-env"
+name: "skillpath-env"
 version: "1.0.0"
 description: "A real-time OpenEnv-compliant environment where an AI acts as a career coach for CS students in India."
 author: "Harikumar07"
